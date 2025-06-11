@@ -8,7 +8,7 @@ WantedBy=multi-user.target
 
 [Service]
 Type=oneshot
-ExecStart=/usr/local/bin/caserver-configure-iptables start
-ExecStop=/usr/local/bin/caserver-configure-iptables stop
+ExecStart=/usr/local/bin/epics-configure-iptables start
+ExecStop=/usr/local/bin/epics-configure-iptables stop
 RemainAfterExit=yes
 StandardError=journal
