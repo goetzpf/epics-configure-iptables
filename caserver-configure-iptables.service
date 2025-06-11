@@ -1,0 +1,14 @@
+[Unit]
+Description=configure iptables for multiple CA servers
+
+After=network-online.target
+
+[Install]
+WantedBy=multi-user.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/caserver-configure-iptables start
+ExecStop=/usr/local/bin/caserver-configure-iptables stop
+RemainAfterExit=yes
+StandardError=journal

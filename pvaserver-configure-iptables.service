@@ -1,0 +1,17 @@
+[Unit]
+Description=configure iptables for multiple CA servers
+
+After=network-online.target
+
+[Install]
+WantedBy=multi-user.target
+
+[Service]
+Type=oneshot
+# actually this is the PVA server port:
+Environment="EPICS_CAS_SERVER_PORT=5075"
+ExecStart=/usr/local/bin/caserver-configure-iptables start
+ExecStop=/usr/local/bin/caserver-configure-iptables stop
+RemainAfterExit=yes
+StandardError=journal
+

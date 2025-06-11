@@ -1,0 +1,167 @@
+#!/bin/bash
+################################################################################
+#
+# Channel Access network workaround helper
+#
+# Version: 1.1.0 / 20170518-1032
+#
+# Author: R. Ovsyannikov, ovsyannikov@helmholtz-berlin.de
+# Copyleft: Use it as you want. No warranty provided ...
+#
+# Minor modifications by Ben Franksen 2020 for the softIOC project
+# Further changes by Goetz Pfeiffer <Goetz.Pfeiffer@helmholtz-berlin.de> 2023, 2025
+#
+# Manual/Help:
+#
+# The script will do 2 things:
+#
+# 1st:  Convert all channel access name resolution queries to go to broadcast
+#   address allowing it to reach all IOCs on the host (adapted from old
+#   R. Lange script)
+#
+# 2nd:  filter all broadcasts except those sent to the broadcast-address of the
+#   interface or 255.255.255.255 to prevent answering name-resolution-requests
+#   on other IP-ranges on the VLAN
+#
+# It can be either run from /etc/network/if-[up|down].d, when interface comes
+# up or down or used from command line as
+#
+#   to start:
+#   MODE=start caserver-configure-iptables
+#
+#   to stop:
+#   MODE=stop caserver-configure-iptables
+#
+#   to view what commands will be issued during start (for stop -A will be
+#   replaced with -D):
+#   caserver-configure-iptables
+#
+# Alternatively, the MODE can be passed as a single argument.
+#
+# If INTERFACE is not empty, only interfaces in that variable are affected.
+#
+# If EPICS_CAS_SERVER_PORT is defined script will it for the port number
+# otherwise it will use default value of 5064
+#
+#   IMPORTANT:
+#
+#   In case of update or changing port settings - please first stop using
+# last used version of the script and port number so old rules are removed
+# properly before starting again
+#
+################################################################################
+
+if [ "$1" == "-h" ] || [ "$1" == "-help" ]; then
+    me=$(basename "$0")
+    echo "$me - set up iptables for the CA gateway"
+    echo
+    echo "usage:"
+    echo "$me COMMAND [INTERFACE]"
+    echo
+    echo "Known COMMANDs:"
+    echo "    start  - setup iptables rules"
+    echo "    stop   - setup iptables rules"
+
+    echo
+    echo "If COMMAND is not given, take the command from the environment variable 'MODE'."
+    echo "If INTERFACE is not given, variable 'IFACE' us used for the list of interfaces."
+    echo "If 'IFACE' is also not set, all network interfaces are used."
+    echo
+    echo "Id EPICS_CAS_SERVER_PORT is set, this is the port used, otherwise the"
+    echo "program uses port 5064."
+    echo
+    exit 0
+fi
+
+# Handle an optional arguments
+if [ -n "$1" ]; then
+    MODE="$1"
+fi
+if [ -n "$2" ]; then
+    IFACE="$2"
+fi
+
+################################################################################
+# Check if all needed utils/commands are available
+for cmd in cut grep ip sed iptables; do
+    if [ -z "$(which $cmd)" ]; then
+        echo "Can not find $cmd in PATH=$PATH" >&2
+        exit 1
+    fi
+done
+
+################################################################################
+
+
+################################################################################
+# Configure ports
+PORT=${EPICS_CAS_SERVER_PORT:-5064}
+################################################################################
+
+
+################################################################################
+# detect all configured local interfaces (except lo)
+if [ -z "$IFACE" ]; then
+    IFACES=$(ip -4 addr | grep '^[^ ]' | sed -e 's/^[^ ]\+ \+//;s/: .*//;s/@.*//')
+else
+    IFACES="$IFACE"
+fi
+
+for iface in $IFACES; do
+    if [ "$iface" == "lo" ]; then
+        continue
+    fi
+    echo "Processing interface $iface" >&2
+
+    # ADDRSPEC is a list of:
+    # IP-ADDR1  BROADCAST1
+    # IP-ADDR2  BROADCAST2
+    #  ...
+    # For many interfaces there is only one ip and broadcast address
+    ADDRSPEC=$(ip -o -4 addr show "$iface" 2>/dev/null | sed -e 's#^.*inet *\([0-9\.]\+\)/[0-9]\+ *brd *\([0-9\.]\+\).*#\1 \2#')
+    if [ -z "$ADDRSPEC" ]; then
+        echo "  Interface $iface does not exist or is not configured" >&2
+        continue
+    fi
+
+    ################################################################################
+    # Configure iptables
+
+    # These two lines are only relevant if the script is installed to
+    # /etc/network/if-[up|down].d
+    if [ "$METHOD" == "none" ]; then
+        exit 0
+    fi
+    if [ "$iface" == "lo" ]; then
+        exit 0
+    fi
+
+    if [ "$MODE" == "start" ]; then
+        ACTIONFLAG=-A
+        CMD="iptables"
+    elif [ "$MODE" == "stop" ]; then
+        ACTIONFLAG=-D
+        CMD="iptables"
+    else
+        # no action specified or unknown action: dry run
+        ACTIONFLAG=-A
+        CMD="echo iptables"
+    fi
+
+    # Convert udp unicasts to port $PORT into local broadcasts
+    for spec in $ADDRSPEC; do
+        addr=$(echo "$spec" | sed -e 's/ .*//')
+        # BCASTS may be a list of several broadcast addresses:
+        bcast=$(echo "$spec" | sed -e 's/^.* //')
+        $CMD -t nat $ACTIONFLAG PREROUTING -i $iface -d $addr -p udp -m udp --dport $PORT -j DNAT --to-destination $bcast
+    done
+
+    # Filter out udp broadcasts to port $PORT except $ALLOWED_BCASTS
+    # BCASTS may be a list of several broadcast addresses:
+    BCASTS=$(echo "$ADDRSPEC" | sed -e 's/^.* //' | paste -sd ' ')
+    ALLOWED_BCASTS="$BCASTS 255.255.255.255"
+    for bcast in $ALLOWED_BCASTS; do
+        $CMD $ACTIONFLAG INPUT -i $iface -p udp -m pkttype --pkt-type broadcast -d ${bcast}/32 --dport $PORT -j ACCEPT
+    done
+    $CMD $ACTIONFLAG INPUT -i $iface -p udp -m pkttype --pkt-type broadcast --dport $PORT -j DROP
+done
