@@ -8,7 +8,7 @@ WantedBy=multi-user.target
 
 [Service]
 Type=oneshot
-ExecStart=/usr/local/bin/epics-configure-iptables start
-ExecStop=/usr/local/bin/epics-configure-iptables stop
+ExecStart=/usr/local/bin/epics-configure-iptables start 5064
+ExecStop=/usr/local/bin/epics-configure-iptables stop 5064
 RemainAfterExit=yes
 StandardError=journal
