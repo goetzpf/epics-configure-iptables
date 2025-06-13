@@ -19,7 +19,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 ################################################################################
-# Version: 1.1.0 / 20170518-1032
+# Version: 1.2
 #
 # Author: R. Ovsyannikov, ovsyannikov@helmholtz-berlin.de
 # Minor modifications by Ben Franksen 2020 for the softIOC project
@@ -37,7 +37,7 @@ if echo "$*" | grep -q '\(^\| \)\(-h\|--help\)'; then
     echo
     echo " 1.  Convert all UDP unicasts to a given port to UDP broadcasts."
     echo " 2.  Filter all broadcasts except those sent to the broadcast-address "
-    echo "     of the interface or 255.255.255.255 to."
+    echo "     of the interface or 255.255.255.255."
     echo
     echo "IMPORTANT:"
     echo

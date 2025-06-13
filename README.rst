@@ -58,3 +58,17 @@ And start with::
   sudo systemctl start caserver-configure-iptables.service"
   sudo systemctl start pvaserver-configure-iptables.service"
 
+Authors
+-------
+
+R. Ovsyannikov <ovsyannikov@helmholtz-berlin.de>
+Ben Franksen <Benjamin.Franksen@helmholtz-berlin.de>
+Goetz Pfeiffer <Goetz.Pfeiffer@helmholtz-berlin.de>
+
+License
+-------
+
+This program is licensed under GNU GPL v.3.
+
+The license text is provided in file 'LICENSE'.
+
