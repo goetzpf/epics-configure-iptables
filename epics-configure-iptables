@@ -52,8 +52,8 @@ if echo "$*" | grep -q '\(^\| \)\(-h\|--help\)'; then
     echo "  -h --help: this help"
     echo
     echo "Known COMMANDs:"
-    echo "    start  - setup iptables rules"
-    echo "    stop   - setup iptables rules"
+    echo "    start  - add ptables rules"
+    echo "    stop   - remove iptables rules"
     echo "    dryrun - show what 'start´ would do"
     echo
     echo "If INTERFACE is not given, all network interfaces will be used."
